@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Identity Platform — Auth Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+:root {
+  --bg:      #0a0c10;
+  --bg2:     #111318;
+  --bg3:     #181c23;
+  --bg4:     #1e2330;
+  --border:  rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text:    #e8eaf0;
+  --text2:   #8b90a0;
+  --text3:   #50556a;
+  --accent:  #4f8ef7;
+  --green:   #34d17a;
+  --red:     #f25c5c;
+  --amber:   #f5a623;
+  --purple:  #a78bfa;
+  --teal:    #2dd4bf;
+  --pink:    #f0a0dc;
+  --mint:    #60e0a0;
+  --r:       12px;
+  --r-sm:    8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ── HEADER ─────────────────────────────── */
+.header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  gap: 16px;
+}
+.header-left { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.logo {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 15px; font-weight: 600; color: var(--text);
+  letter-spacing: -0.3px; white-space: nowrap;
+}
+.logo-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(0.8); }
+}
+.badge-project {
+  background: var(--bg4); border: 1px solid var(--border2);
+  color: var(--text2); font-size: 11px; font-family: 'DM Mono', monospace;
+  padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+}
+
+.header-center { flex: 1; display: flex; justify-content: center; }
+
+.search-wrap { position: relative; width: 100%; max-width: 380px; }
+.search-wrap svg {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--text3); pointer-events: none; flex-shrink: 0;
+}
+#globalSearch {
+  width: 100%; background: var(--bg3);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  padding: 8px 36px 8px 36px;
+  color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px;
+  outline: none; transition: border-color 0.2s;
+}
+#globalSearch:focus { border-color: var(--accent); background: var(--bg4); }
+#globalSearch::placeholder { color: var(--text3); }
+.kbd {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 10px; color: var(--text3); font-family: 'DM Mono', monospace;
+  background: var(--bg4); padding: 2px 6px; border-radius: 4px;
+  border: 1px solid var(--border); pointer-events: none;
+}
+
+.header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* ── BUTTONS ─────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text2); padding: 7px 13px; border-radius: var(--r-sm);
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.18s; white-space: nowrap; line-height: 1;
+}
+.btn:hover { border-color: var(--border2); color: var(--text); background: var(--bg4); }
+.btn.active { border-color: var(--accent); color: var(--accent); }
+.btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.btn-primary {
+  background: var(--accent); border-color: var(--accent);
+  color: #fff; font-weight: 600;
+}
+.btn-primary:hover { background: #3d7aef; border-color: #3d7aef; color: #fff; }
+.dot-indicator {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--amber); flex-shrink: 0;
+  transition: background 0.2s;
+}
+.btn.active .dot-indicator { background: var(--green); }
+
+/* ── UPLOAD SCREEN ─────────────────────────────── */
+#uploadScreen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 60px);
+  padding: 40px 32px;
+  gap: 0;
+}
+.upload-card {
+  background: var(--bg2);
+  border: 1.5px dashed var(--border2);
+  border-radius: 20px;
+  padding: 56px 60px;
+  text-align: center;
+  max-width: 520px;
+  width: 100%;
+  transition: border-color 0.2s, background 0.2s;
+  cursor: pointer;
+}
+.upload-card:hover, .upload-card.dragover {
+  border-color: var(--accent);
+  background: rgba(79,142,247,0.04);
+}
+.upload-icon {
+  width: 64px; height: 64px;
+  background: rgba(79,142,247,0.1);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 24px;
+}
+.upload-icon svg { color: var(--accent); }
+.upload-title { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+.upload-sub { font-size: 13px; color: var(--text2); line-height: 1.7; margin-bottom: 28px; }
+.upload-sub code {
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  background: var(--bg4); padding: 2px 7px; border-radius: 4px;
+  color: var(--teal);
+}
+#fileInput { display: none; }
+
+.upload-steps {
+  display: flex; gap: 12px; margin-top: 40px; max-width: 520px; width: 100%;
+}
+.upload-step {
+  flex: 1; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px 14px; text-align: center;
+}
+.step-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(79,142,247,0.12); color: var(--accent);
+  font-size: 11px; font-weight: 600; display: flex; align-items: center;
+  justify-content: center; margin: 0 auto 10px;
+}
+.step-text { font-size: 11px; color: var(--text2); line-height: 1.5; }
+
+/* ── LOADING ─────────────────────────────── */
+#loadingScreen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 60px);
+  gap: 20px;
+}
+.spinner {
+  width: 36px; height: 36px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 13px; color: var(--text2); }
+
+/* ── DASHBOARD ─────────────────────────────── */
+#dashboard { display: none; }
+
+.main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+
+/* ── FILE INFO BAR ─────────────────────────────── */
+.file-info-bar {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 12px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 24px;
+  animation: fadeUp 0.3s ease both;
+}
+.file-info-left { display: flex; align-items: center; gap: 12px; }
+.file-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.file-name { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text2); }
+.file-meta { font-size: 11px; color: var(--text3); }
+.file-range {
+  font-size: 11px; color: var(--text3);
+  font-family: 'DM Mono', monospace;
+}
+
+/* ── SECTION LABEL ─────────────────────────────── */
+.section-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--text3);
+  margin-bottom: 14px; display: flex; align-items: center; gap: 10px;
+}
+.section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* ── KPI CARDS ─────────────────────────────── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 10px;
+  margin-bottom: 26px;
+}
+.kpi-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px 18px;
+  transition: border-color 0.18s, transform 0.18s;
+  animation: fadeUp 0.4s ease both;
+  cursor: default;
+}
+.kpi-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(10px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.kpi-label {
+  font-size: 10px; color: var(--text3); font-weight: 500;
+  letter-spacing: 0.6px; text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.kpi-value {
+  font-size: 24px; font-weight: 600;
+  letter-spacing: -0.5px; line-height: 1.15;
+}
+.kpi-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+.kpi-bar { height: 2px; background: var(--bg4); border-radius: 2px; margin-top: 12px; overflow: hidden; }
+.kpi-bar-fill { height: 100%; border-radius: 2px; transition: width 1s cubic-bezier(0.16,1,0.3,1); width: 0%; }
+
+/* ── CHART LAYOUTS ─────────────────────────────── */
+.grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; margin-bottom: 14px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 14px; }
+.grid-full { margin-bottom: 14px; }
+@media(max-width: 960px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+/* ── CARD ─────────────────────────────── */
+.card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 18px 20px;
+  animation: fadeUp 0.45s ease both;
+}
+.card-header { margin-bottom: 14px; }
+.card-title {
+  font-size: 12px; font-weight: 600; color: var(--text);
+  display: flex; align-items: center; gap: 8px; margin-bottom: 3px;
+}
+.card-sub { font-size: 11px; color: var(--text3); line-height: 1.4; }
+
+/* ── HEATMAP ─────────────────────────────── */
+.heatmap-scroll { overflow-x: auto; margin-top: 4px; }
+.heatmap-table { border-collapse: separate; border-spacing: 3px; font-size: 10px; }
+.heatmap-table th {
+  color: var(--text3); font-weight: 500; padding: 2px 4px;
+  text-align: center; font-size: 9px; min-width: 28px;
+}
+.heatmap-table .h-day-label {
+  color: var(--text2); font-weight: 500; font-size: 10px;
+  text-align: right; padding-right: 10px; white-space: nowrap;
+}
+.heatmap-cell {
+  width: 28px; height: 22px; border-radius: 4px;
+  text-align: center; font-family: 'DM Mono', monospace; font-size: 9px;
+  cursor: default; transition: transform 0.12s;
+  vertical-align: middle;
+}
+.heatmap-cell:hover { transform: scale(1.3); z-index: 5; position: relative; }
+
+/* ── SEARCH PANEL ─────────────────────────────── */
+#searchPanel {
+  display: none;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); margin-bottom: 22px;
+  overflow: hidden;
+  animation: fadeUp 0.25s ease both;
+}
+.search-panel-header {
+  padding: 12px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+}
+.search-panel-title { font-size: 12px; font-weight: 600; }
+.search-panel-right { display: flex; align-items: center; gap: 10px; }
+.result-count { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+.clear-btn {
+  background: none; border: none; color: var(--text3); cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 0 4px; transition: color 0.15s;
+}
+.clear-btn:hover { color: var(--text); }
+
+.filter-bar {
+  padding: 10px 20px; border-bottom: 1px solid var(--border);
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.f-chip {
+  padding: 3px 11px; border-radius: 20px; font-size: 11px; cursor: pointer;
+  border: 1px solid var(--border); color: var(--text2);
+  background: var(--bg3); transition: all 0.15s; user-select: none;
+}
+.f-chip:hover { border-color: var(--border2); color: var(--text); }
+.f-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.results-wrap { overflow-x: auto; max-height: 380px; overflow-y: auto; }
+.r-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.r-table th {
+  padding: 9px 14px; text-align: left; color: var(--text3);
+  font-weight: 500; font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg2); z-index: 2;
+}
+.r-table td {
+  padding: 8px 14px; border-bottom: 1px solid var(--border);
+  color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px;
+  vertical-align: middle;
+}
+.r-table tr:hover td { background: var(--bg3); }
+.r-table tr:last-child td { border-bottom: none; }
+.r-table td.no-data { color: var(--text3); }
+
+.sbadge {
+  display: inline-block; padding: 2px 8px; border-radius: 20px;
+  font-size: 10px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+}
+.sb-ok   { background: rgba(52,209,122,0.12);  color: var(--green); }
+.sb-fail { background: rgba(242,92,92,0.12);   color: var(--red); }
+.sb-pw   { background: rgba(79,142,247,0.12);  color: var(--accent); }
+.sb-idp  { background: rgba(45,212,191,0.12);  color: var(--teal); }
+.sb-mob  { background: rgba(167,139,250,0.12); color: var(--purple); }
+
+.no-results-msg {
+  padding: 40px; text-align: center;
+  color: var(--text3); font-size: 13px;
+}
+.overflow-note {
+  padding: 10px 14px; text-align: center;
+  color: var(--text3); font-size: 11px;
+  border-top: 1px solid var(--border);
+  background: var(--bg3);
+}
+
+/* ── SUSPICIOUS TABLE ─────────────────────────────── */
+.s-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
+.s-table th {
+  color: var(--text3); font-weight: 500; font-size: 10px;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border);
+}
+.s-table td {
+  padding: 8px 10px; border-bottom: 1px solid var(--border);
+  font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text);
+}
+.s-table tr:hover td { background: var(--bg3); }
+.s-table tr:last-child td { border-bottom: none; }
+.risk-pill {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+}
+.r-high { background: rgba(242,92,92,0.15);  color: var(--red); }
+.r-med  { background: rgba(245,166,35,0.15); color: var(--amber); }
+.r-low  { background: rgba(52,209,122,0.12); color: var(--green); }
+
+/* ── TOP USERS ─────────────────────────────── */
+#topUsersSection { display: none; margin-bottom: 14px; }
+#topUsersSection.show { display: block; }
+
+/* ── FOOTER ─────────────────────────────── */
+.footer {
+  text-align: center; padding: 28px 32px;
+  color: var(--text3); font-size: 11px;
+  border-top: 1px solid var(--border); margin-top: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  flex-wrap: wrap;
+}
+.footer-item { display: flex; align-items: center; gap: 6px; }
+.footer-sep { color: var(--border2); }
+
+/* ── SCROLLBAR ─────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border2); }
+
+/* ── TOOLTIP ─────────────────────────────── */
+.ttp {
+  position: fixed; z-index: 999;
+  background: var(--bg4); border: 1px solid var(--border2);
+  border-radius: 6px; padding: 7px 11px;
+  font-size: 11px; color: var(--text); font-family: 'DM Mono', monospace;
+  pointer-events: none; display: none;
+  max-width: 320px; white-space: normal; line-height: 1.6;
+}
+</style>
+</head>
+<body>
+
+<!-- ── GLOBAL TOOLTIP ── -->
+<div class="ttp" id="ttp"></div>
+
+<!-- ── HEADER ── -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      Auth Analytics
+    </div>
+    <span class="badge-project" id="projectBadge">Identity Platform</span>
+  </div>
+
+  <div class="header-center">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input type="text" id="globalSearch" placeholder="Search email, IP, method, status, provider…" autocomplete="off"/>
+      <span class="kbd">⌘K</span>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <button class="btn" id="btnTopUsers">
+      <div class="dot-indicator"></div>
+      Top Users
+    </button>
+    <label class="btn btn-primary" for="fileInput" id="loadBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      Load CSV
+    </label>
+    <input type="file" id="fileInput" accept=".csv"/>
+  </div>
+</header>
+
+<!-- ── UPLOAD SCREEN ── -->
+<div id="uploadScreen">
+  <label class="upload-card" for="fileInput" id="dropZone">
+    <div class="upload-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="12" y1="12" x2="12" y2="18"/>
+        <polyline points="9 15 12 18 15 15"/>
+      </svg>
+    </div>
+    <div class="upload-title">Drop your CSV here</div>
+    <div class="upload-sub">
+      Export your Identity Platform logs from GCP Logs Explorer as CSV and load them here.<br/>
+      The dashboard updates automatically — no server, no uploads, fully local.<br/><br/>
+      Expected format: <code>identitytoolkit.googleapis.com/requests</code> export
+    </div>
+    <div class="btn btn-primary" style="display:inline-flex;pointer-events:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      Choose CSV File
+    </div>
+  </label>
+
+  <div class="upload-steps">
+    <div class="upload-step">
+      <div class="step-num">1</div>
+      <div class="step-text">Open <strong>Logs Explorer</strong> in GCP Console for your project</div>
+    </div>
+    <div class="upload-step">
+      <div class="step-num">2</div>
+      <div class="step-text">Filter by <code style="font-family:'DM Mono';font-size:10px;background:var(--bg4);padding:1px 5px;border-radius:3px;color:var(--teal)">identitytoolkit</code> and set your time range</div>
+    </div>
+    <div class="upload-step">
+      <div class="step-num">3</div>
+      <div class="step-text">Click <strong>Download</strong> → CSV and load it here</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── LOADING ── -->
+<div id="loadingScreen">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Parsing CSV…</div>
+</div>
+
+<!-- ── DASHBOARD ── -->
+<div id="dashboard">
+<main class="main">
+
+  <!-- FILE INFO BAR -->
+  <div class="file-info-bar">
+    <div class="file-info-left">
+      <div class="file-dot"></div>
+      <div>
+        <div class="file-name" id="fileNameLabel">—</div>
+        <div class="file-meta" id="fileMetaLabel">—</div>
+      </div>
+    </div>
+    <div class="file-range" id="fileRangeLabel">—</div>
+  </div>
+
+  <!-- SEARCH RESULTS -->
+  <div id="searchPanel">
+    <div class="search-panel-header">
+      <span class="search-panel-title">Search results</span>
+      <div class="search-panel-right">
+        <span class="result-count" id="resultCount">0 results</span>
+        <button class="clear-btn" id="clearSearch" title="Clear search">×</button>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <span class="f-chip on"  data-f="all">All</span>
+      <span class="f-chip"     data-f="Success">✓ Success</span>
+      <span class="f-chip"     data-f="Failed">✗ Failed</span>
+      <span class="f-chip"     data-f="Password">Password</span>
+      <span class="f-chip"     data-f="IdP">Federated IdP</span>
+      <span class="f-chip"     data-f="Mobile">Mobile</span>
+      <span class="f-chip"     data-f="Desktop">Desktop</span>
+      <span class="f-chip"     data-f="google.com">Google</span>
+      <span class="f-chip"     data-f="ms-entra">Microsoft</span>
+    </div>
+    <div class="results-wrap">
+      <table class="r-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Email</th>
+            <th>IP Address</th>
+            <th>Method</th>
+            <th>Device</th>
+            <th>Provider</th>
+            <th>Status</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody id="searchBody"></tbody>
+      </table>
+      <div class="no-results-msg" id="noResultsMsg" style="display:none">No records match your search.</div>
+    </div>
+    <div class="overflow-note" id="overflowNote" style="display:none"></div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="section-label">Overview</div>
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- DAILY TREND -->
+  <div class="section-label">Login trends</div>
+  <div class="grid-full">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Daily login volume &amp; failure overlay</div>
+        <div class="card-sub">Total logins per day (bars) with failed attempts trend (red line)</div>
+      </div>
+      <canvas id="cDaily" height="85"></canvas>
+    </div>
+  </div>
+
+  <!-- HOURLY + DOW -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Hourly activity pattern</div>
+        <div class="card-sub">Login volume by hour of day — reveals peak windows</div>
+      </div>
+      <canvas id="cHourly" height="155"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Day of week distribution</div>
+        <div class="card-sub">Weekday vs weekend login patterns</div>
+      </div>
+      <canvas id="cDow" height="155"></canvas>
+    </div>
+  </div>
+
+  <!-- METHOD + SUCCESS + PROVIDER -->
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Authentication method</div>
+        <div class="card-sub">Password vs federated IdP split</div>
+      </div>
+      <canvas id="cMethod" height="175"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Success rate by method</div>
+        <div class="card-sub">Success &amp; failure count per auth method</div>
+      </div>
+      <canvas id="cMethodSuccess" height="175"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">IdP provider split</div>
+        <div class="card-sub">Google vs Microsoft Entra ID</div>
+      </div>
+      <canvas id="cProvider" height="175"></canvas>
+    </div>
+  </div>
+
+  <!-- DEVICE + NEW USERS -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Device breakdown</div>
+        <div class="card-sub">Mobile vs desktop — volume and success rate comparison</div>
+      </div>
+      <canvas id="cDevice" height="155"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">New user registrations</div>
+        <div class="card-sub">Daily first-time signups over the selected period</div>
+      </div>
+      <canvas id="cNewUsers" height="155"></canvas>
+    </div>
+  </div>
+
+  <!-- HEATMAP -->
+  <div class="section-label">Activity heatmap</div>
+  <div class="grid-full">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Login density — day × hour</div>
+        <div class="card-sub">Each cell = login count. Darker blue = higher activity. Hover for exact values.</div>
+      </div>
+      <div class="heatmap-scroll" id="heatmapWrap"></div>
+    </div>
+  </div>
+
+  <!-- SECURITY -->
+  <div class="section-label">Security signals</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Top IPs with failed logins</div>
+        <div class="card-sub">Potential brute-force sources — ranked by failure count</div>
+      </div>
+      <canvas id="cIp" height="190"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Accounts with most failures</div>
+        <div class="card-sub">Users repeatedly failing — possible targeted credential attacks</div>
+      </div>
+      <table class="s-table" id="bruteTable"></table>
+    </div>
+  </div>
+
+  <!-- TOP USERS (toggleable) -->
+  <div id="topUsersSection">
+    <div class="section-label">Top users by login count</div>
+    <div class="grid-full">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            Most active users
+            <span style="font-size:10px;color:var(--amber);background:rgba(245,166,35,0.1);border:1px solid rgba(245,166,35,0.25);padding:2px 8px;border-radius:4px;font-weight:400;margin-left:4px">
+              PII — internal use only
+            </span>
+          </div>
+          <div class="card-sub">Users ranked by total successful logins this period</div>
+        </div>
+        <canvas id="cTopUsers" height="80"></canvas>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="footer">
+  <span class="footer-item">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent)">
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+    <span id="footerRange">—</span>
+  </span>
+  <span class="footer-sep">·</span>
+  <span class="footer-item" id="footerTotal">—</span>
+  <span class="footer-sep">·</span>
+  <span class="footer-item" style="color:var(--text3)">Identity Platform Auth Analytics</span>
+</footer>
+</div>
+
+<script>
+// ── CHART INSTANCES (for destroy/rebuild on reload) ─────────────
+const charts = {};
+
+// ── CHART DEFAULTS ──────────────────────────────────────────────
+function applyDefaults() {
+  Chart.defaults.color = '#50556a';
+  Chart.defaults.font.family = "'DM Sans', sans-serif";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.plugins.legend.display = false;
+  Chart.defaults.plugins.tooltip.backgroundColor = '#1e2330';
+  Chart.defaults.plugins.tooltip.borderColor = 'rgba(255,255,255,0.1)';
+  Chart.defaults.plugins.tooltip.borderWidth = 1;
+  Chart.defaults.plugins.tooltip.titleColor = '#e8eaf0';
+  Chart.defaults.plugins.tooltip.bodyColor = '#8b90a0';
+  Chart.defaults.plugins.tooltip.padding = 10;
+  Chart.defaults.plugins.tooltip.cornerRadius = 8;
+  Chart.defaults.scale.grid.color = 'rgba(255,255,255,0.04)';
+  Chart.defaults.scale.ticks.color = '#50556a';
+  Chart.defaults.scale.border = { display: false };
+}
+applyDefaults();
+
+const C = {
+  accent:'#4f8ef7', green:'#34d17a', red:'#f25c5c',
+  amber:'#f5a623', purple:'#a78bfa', teal:'#2dd4bf',
+  pink:'#f0a0dc', mint:'#60e0a0'
+};
+
+// ── FILE INPUT ──────────────────────────────────────────────────
+const fileInput   = document.getElementById('fileInput');
+const uploadScreen = document.getElementById('uploadScreen');
+const loadingScreen = document.getElementById('loadingScreen');
+const dashEl      = document.getElementById('dashboard');
+const loadingText = document.getElementById('loadingText');
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+// Drag & drop on the upload card
+const dropZone = document.getElementById('dropZone');
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer?.files?.[0];
+  if (f && f.name.endsWith('.csv')) handleFile(f);
+});
+dropZone.addEventListener('dragenter', () => dropZone.classList.add('dragover'));
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+function handleFile(file) {
+  uploadScreen.style.display = 'none';
+  loadingScreen.style.display = 'flex';
+  loadingText.textContent = 'Parsing ' + file.name + '…';
+
+  document.getElementById('fileNameLabel').textContent = file.name;
+
+  setTimeout(() => {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: results => {
+        loadingText.textContent = 'Building charts…';
+        setTimeout(() => {
+          try {
+            const data = processCSV(results.data, file);
+            renderDashboard(data);
+            loadingScreen.style.display = 'none';
+            dashEl.style.display = 'block';
+            searchData = data.raw;
+          } catch(err) {
+            loadingScreen.style.display = 'none';
+            uploadScreen.style.display = 'flex';
+            alert('Error reading CSV: ' + err.message + '\n\nMake sure this is a GCP Identity Platform logs export.');
+          }
+        }, 50);
+      },
+      error: err => {
+        loadingScreen.style.display = 'none';
+        uploadScreen.style.display = 'flex';
+        alert('Failed to parse CSV: ' + err.message);
+      }
+    });
+  }, 80);
+}
+
+// ── CSV PROCESSING ──────────────────────────────────────────────
+function clean(v) {
+  if (!v || v === '' || v === 'NaN' || v === 'nan') return '';
+  return String(v).replace(/^'+/, '').replace(/'+$/, '').trim();
+}
+function isMobile(ua) {
+  return /mobile|android|iphone|ipad/i.test(ua || '');
+}
+function methodLabel(m) {
+  if (!m) return 'Unknown';
+  if (m.includes('Password'))    return 'Password';
+  if (m.includes('Idp'))         return 'IdP';
+  if (m.includes('PhoneNumber')) return 'Phone';
+  if (m.includes('EmailLink'))   return 'Email Link';
+  if (m.includes('SignUp'))      return 'Sign Up';
+  return 'Other';
+}
+function providerLabel(p) {
+  if (!p) return '';
+  p = clean(p);
+  if (p.includes('google'))      return 'google.com';
+  if (p.includes('microsoft') || p.includes('entra') || p.includes('ms-entra')) return 'ms-entra';
+  if (p.includes('github'))      return 'github.com';
+  if (p.includes('facebook'))    return 'facebook.com';
+  return p;
+}
+
+function processCSV(rows, file) {
+  const byDate   = {};
+  const byHour   = Array(24).fill(0);
+  const byDow    = {Monday:0,Tuesday:0,Wednesday:0,Thursday:0,Friday:0,Saturday:0,Sunday:0};
+  const byHeatmap = {};
+  const methodCount = { Password:0, IdP:0, Other:0 };
+  const methodSucc  = { Password:{ok:0,fail:0}, IdP:{ok:0,fail:0} };
+  const deviceSucc  = { Mobile:{ok:0,fail:0}, Desktop:{ok:0,fail:0} };
+  const providerCount = {};
+  const failedIpCount = {};
+  const failedEmailCount = {};
+  const userLoginCount = {};
+  const raw = [];
+
+  let totalOk=0, totalFail=0, totalNew=0, minDate='', maxDate='';
+
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  rows.forEach(row => {
+    const ts      = clean(row['timestamp']);
+    if (!ts) return;
+
+    const dt = new Date(ts);
+    if (isNaN(dt.getTime())) return;
+
+    const dateStr = dt.toISOString().split('T')[0];
+    const hour    = dt.getUTCHours();
+    const dow     = DAYS[dt.getUTCDay()];
+
+    if (!minDate || dateStr < minDate) minDate = dateStr;
+    if (!maxDate || dateStr > maxDate) maxDate = dateStr;
+
+    const method  = clean(row['jsonPayload.methodName']);
+    const email   = clean(row['jsonPayload.request.email']) || clean(row['jsonPayload.response.email']);
+    const ip      = clean(row['jsonPayload.requestMetadata.callerIp']);
+    const ua      = clean(row['jsonPayload.requestMetadata.callerSuppliedUserAgent']);
+    const status  = row['severity'] === 'ERROR' ? 'Failed' : 'Success';
+    const isOk    = status === 'Success';
+    const errMsg  = clean(row['jsonPayload.status.message']);
+    const isNew   = row['jsonPayload.response.isNewUser'] === 'True' || row['jsonPayload.response.isNewUser'] === true;
+    const rawProv = clean(row['jsonPayload.response.providerId']);
+    const provider = providerLabel(rawProv);
+    const device  = isMobile(ua) ? 'Mobile' : 'Desktop';
+    const mLabel  = methodLabel(method);
+
+    // date bucket
+    if (!byDate[dateStr]) byDate[dateStr] = {total:0, ok:0, fail:0, newU:0};
+    byDate[dateStr].total++;
+    if (isOk) byDate[dateStr].ok++; else byDate[dateStr].fail++;
+    if (isNew) { byDate[dateStr].newU++; totalNew++; }
+
+    // hourly
+    byHour[hour]++;
+
+    // dow
+    if (byDow[dow] !== undefined) byDow[dow]++;
+
+    // heatmap
+    const hk = dow + '_' + hour;
+    if (!byHeatmap[hk]) byHeatmap[hk] = { count: 0, months: {} };
+    byHeatmap[hk].count++;
+    const monthKey = dt.toLocaleString('default', { month: 'short', timeZone: 'UTC' }) + ' ' + dt.getUTCFullYear();
+    byHeatmap[hk].months[monthKey] = (byHeatmap[hk].months[monthKey] || 0) + 1;
+
+    // method
+    if (mLabel === 'Password') methodCount.Password++;
+    else if (mLabel === 'IdP') methodCount.IdP++;
+    else methodCount.Other++;
+
+    // method success
+    if (mLabel === 'Password') { if(isOk) methodSucc.Password.ok++; else methodSucc.Password.fail++; }
+    else if (mLabel === 'IdP') { if(isOk) methodSucc.IdP.ok++; else methodSucc.IdP.fail++; }
+
+    // device success
+    if (isOk) deviceSucc[device].ok++; else deviceSucc[device].fail++;
+
+    // provider
+    if (provider && !isOk && method.includes('Idp')) {/* skip failed idp */}
+    if (provider && isOk) providerCount[provider] = (providerCount[provider]||0)+1;
+
+    // failed IP
+    if (!isOk && ip) failedIpCount[ip] = (failedIpCount[ip]||0)+1;
+
+    // failed email
+    if (!isOk && email) failedEmailCount[email] = (failedEmailCount[email]||0)+1;
+
+    // top users
+    if (isOk && email) userLoginCount[email] = (userLoginCount[email]||0)+1;
+
+    if (isOk) totalOk++; else totalFail++;
+
+    raw.push({
+      timestamp: ts, email, ip, method: mLabel, device, provider: rawProv || '', status, errMsg
+    });
+  });
+
+  // sort dates
+  const sortedDates = Object.keys(byDate).sort();
+  const daily = sortedDates.map(d => ({
+    date: d, total: byDate[d].total, ok: byDate[d].ok,
+    fail: byDate[d].fail, newU: byDate[d].newU
+  }));
+
+  const hourly = byHour.map((c,h) => ({hour:h, count:c}));
+
+  const DOW_ORDER = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const dow = DOW_ORDER.map(d => ({day:d, count:byDow[d]||0}));
+
+  const heatmap = Object.entries(byHeatmap).map(([k,v]) => {
+    const [day, h] = k.split('_');
+    return {day, hour:+h, count:v.count, months:v.months};
+  });
+
+  const failedIps = Object.entries(failedIpCount)
+    .sort((a,b)=>b[1]-a[1]).slice(0,10)
+    .map(([ip,count])=>({ip,count}));
+
+  const bruteForce = Object.entries(failedEmailCount)
+    .sort((a,b)=>b[1]-a[1]).slice(0,10)
+    .map(([email,count])=>({email,count}));
+
+  const topUsers = Object.entries(userLoginCount)
+    .sort((a,b)=>b[1]-a[1]).slice(0,15)
+    .map(([email,count])=>({email,count}));
+
+  const providers = Object.entries(providerCount)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([p,count])=>({provider:p, count}));
+
+  const total = totalOk + totalFail;
+  const mobile = raw.filter(r=>r.device==='Mobile').length;
+
+  document.getElementById('fileMetaLabel').textContent =
+    total.toLocaleString() + ' events · ' + sortedDates.length + ' days';
+  document.getElementById('fileRangeLabel').textContent =
+    fmtDate(minDate) + ' → ' + fmtDate(maxDate);
+  document.getElementById('projectBadge').textContent =
+    clean(rows[0]?.['resource.labels.project_id']) || 'Identity Platform';
+  document.getElementById('footerRange').textContent =
+    fmtDate(minDate) + ' – ' + fmtDate(maxDate);
+  document.getElementById('footerTotal').textContent =
+    total.toLocaleString() + ' events';
+
+  return {
+    summary: { total, ok:totalOk, fail:totalFail, newUsers:totalNew,
+               mobile, desktop:total-mobile,
+               password:methodCount.Password, idp:methodCount.IdP },
+    daily, hourly, dow, heatmap, methodCount, methodSucc, deviceSucc,
+    providers, failedIps, bruteForce, topUsers, raw,
+    minDate, maxDate
+  };
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y,m,dd] = d.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[+m-1] + ' ' + dd + ', ' + y;
+}
+
+// ── RENDER ──────────────────────────────────────────────────────
+function mk(id, type, data, opts) {
+  if (charts[id]) { charts[id].destroy(); }
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  charts[id] = new Chart(ctx, { type, data, options: { responsive:true, ...opts } });
+}
+
+function renderDashboard(D) {
+  const S = D.summary;
+  renderKPIs(S);
+  renderDaily(D.daily);
+  renderHourly(D.hourly);
+  renderDow(D.dow);
+  renderMethod(S);
+  renderMethodSuccess(D.methodSucc);
+  renderProvider(D.providers);
+  renderDevice(D.deviceSucc);
+  renderNewUsers(D.daily);
+  renderHeatmap(D.heatmap);
+  renderIPs(D.failedIps);
+  renderBrute(D.bruteForce);
+  renderTopUsers(D.topUsers);
+}
+
+// KPIs
+function renderKPIs(S) {
+  const rate   = S.total ? Math.round(S.ok/S.total*100) : 0;
+  const mobPct = S.total ? Math.round(S.mobile/S.total*100) : 0;
+  const idpPct = S.total ? Math.round(S.idp/S.total*100) : 0;
+  const recPct = S.fail  ? Math.round(S.ok/S.fail*5)    : 0;
+  const cards = [
+    {l:'Total events',       v:S.total.toLocaleString(),    s:'all login activity',         col:C.accent, pct:100},
+    {l:'Successful logins',  v:S.ok.toLocaleString(),       s:rate+'% success rate',         col:C.green,  pct:rate},
+    {l:'Failed attempts',    v:S.fail.toLocaleString(),     s:(100-rate)+'% of total',       col:C.red,    pct:100-rate},
+    {l:'New registrations',  v:S.newUsers.toLocaleString(), s:'first-time sign-ups',         col:C.purple, pct:Math.min(100,Math.round(S.newUsers/S.total*500))},
+    {l:'Mobile sessions',    v:S.mobile.toLocaleString(),   s:mobPct+'% of total',           col:C.teal,   pct:mobPct},
+    {l:'Desktop sessions',   v:S.desktop.toLocaleString(),  s:(100-mobPct)+'% of total',     col:C.accent, pct:100-mobPct},
+    {l:'Password logins',    v:S.password.toLocaleString(), s:Math.round(S.password/S.total*100)+'% of total', col:C.pink, pct:Math.round(S.password/S.total*100)},
+    {l:'IdP logins',         v:S.idp.toLocaleString(),      s:idpPct+'% federated',          col:C.mint,   pct:idpPct},
+  ];
+  const grid = document.getElementById('kpiGrid');
+  grid.innerHTML = '';
+  cards.forEach((k, i) => {
+    const d = document.createElement('div');
+    d.className = 'kpi-card';
+    d.style.animationDelay = (i * 0.06) + 's';
+    d.innerHTML = `
+      <div class="kpi-label">${k.l}</div>
+      <div class="kpi-value" style="color:${k.col}">${k.v}</div>
+      <div class="kpi-sub">${k.s}</div>
+      <div class="kpi-bar"><div class="kpi-bar-fill" style="background:${k.col}" data-w="${k.pct}"></div></div>`;
+    grid.appendChild(d);
+  });
+  setTimeout(() => {
+    grid.querySelectorAll('.kpi-bar-fill').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  }, 200);
+}
+
+// Daily
+function renderDaily(daily) {
+  const labels = daily.map(d => {
+    const dt = new Date(d.date + 'T00:00:00Z');
+    return (dt.getUTCMonth()+1) + '/' + dt.getUTCDate();
+  });
+  mk('cDaily', 'bar', {
+    labels,
+    datasets: [
+      {
+        type:'bar', label:'Total logins', data:daily.map(d=>d.total),
+        backgroundColor:'rgba(79,142,247,0.22)', borderColor:'rgba(79,142,247,0.55)',
+        borderWidth:1, borderRadius:4, yAxisID:'y'
+      },
+      {
+        type:'line', label:'Failed', data:daily.map(d=>d.fail),
+        borderColor:C.red, backgroundColor:'rgba(242,92,92,0.07)',
+        borderWidth:2, pointRadius:3, pointBackgroundColor:C.red,
+        tension:0.35, fill:true, yAxisID:'y2'
+      }
+    ]
+  }, {
+    interaction:{mode:'index'},
+    plugins:{ legend:{ display:true, labels:{color:'#8b90a0',boxWidth:10,font:{size:11}} } },
+    scales:{
+      y:  {position:'left'},
+      y2: {position:'right', grid:{drawOnChartArea:false}, ticks:{color:C.red}}
+    }
+  });
+}
+
+// Hourly
+function renderHourly(hourly) {
+  const counts = hourly.map(d=>d.count);
+  const mx = Math.max(...counts);
+  mk('cHourly','bar',{
+    labels: hourly.map(d=>d.hour+':00'),
+    datasets:[{
+      data:counts,
+      backgroundColor:counts.map(v=>`rgba(79,142,247,${(0.12+0.65*(v/mx)).toFixed(2)})`),
+      borderRadius:4, borderSkipped:false
+    }]
+  },{scales:{x:{ticks:{maxRotation:0,maxTicksLimit:8}}}});
+}
+
+// Day of Week
+function renderDow(dow) {
+  const bgColors = dow.map((d,i) => i < 5 ? 'rgba(79,142,247,0.65)' : 'rgba(167,139,250,0.45)');
+  mk('cDow','bar',{
+    labels: dow.map(d=>d.day.substring(0,3)),
+    datasets:[{ data:dow.map(d=>d.count), backgroundColor:bgColors, borderRadius:6, borderSkipped:false }]
+  },{});
+}
+
+// Auth Method Donut
+function renderMethod(S) {
+  mk('cMethod','doughnut',{
+    labels:['Password','Federated IdP'],
+    datasets:[{
+      data:[S.password, S.idp],
+      backgroundColor:[C.accent, C.teal],
+      borderWidth:0, hoverOffset:8
+    }]
+  },{
+    cutout:'68%',
+    plugins:{ legend:{ display:true, position:'bottom', labels:{color:'#8b90a0',padding:14,boxWidth:10} } }
+  });
+}
+
+// Method Success
+function renderMethodSuccess(ms) {
+  const methods = Object.keys(ms);
+  mk('cMethodSuccess','bar',{
+    labels:methods,
+    datasets:[
+      { label:'Success', data:methods.map(m=>ms[m].ok),   backgroundColor:'rgba(52,209,122,0.6)',  borderRadius:6 },
+      { label:'Failed',  data:methods.map(m=>ms[m].fail), backgroundColor:'rgba(242,92,92,0.55)', borderRadius:6 }
+    ]
+  },{
+    plugins:{ legend:{ display:true, labels:{color:'#8b90a0',boxWidth:10,font:{size:11}} } }
+  });
+}
+
+// Provider
+function renderProvider(providers) {
+  if (!providers.length) {
+    document.getElementById('cProvider').parentElement.innerHTML += '<div style="text-align:center;color:var(--text3);padding:40px;font-size:12px">No federated logins in this dataset</div>';
+    return;
+  }
+  const labels = providers.map(p => {
+    if (p.provider === 'google.com') return 'Google';
+    if (p.provider.includes('entra') || p.provider.includes('ms-entra')) return 'Microsoft Entra';
+    return p.provider;
+  });
+  mk('cProvider','doughnut',{
+    labels,
+    datasets:[{
+      data:providers.map(p=>p.count),
+      backgroundColor:[C.amber, C.accent, C.teal, C.purple],
+      borderWidth:0, hoverOffset:8
+    }]
+  },{
+    cutout:'68%',
+    plugins:{ legend:{ display:true, position:'bottom', labels:{color:'#8b90a0',padding:14,boxWidth:10} } }
+  });
+}
+
+// Device
+function renderDevice(ds) {
+  const devs = Object.keys(ds);
+  mk('cDevice','bar',{
+    labels:devs,
+    datasets:[
+      { label:'Success', data:devs.map(d=>ds[d].ok),   backgroundColor:'rgba(52,209,122,0.6)',  borderRadius:6 },
+      { label:'Failed',  data:devs.map(d=>ds[d].fail), backgroundColor:'rgba(242,92,92,0.55)', borderRadius:6 }
+    ]
+  },{
+    plugins:{ legend:{ display:true, labels:{color:'#8b90a0',boxWidth:10,font:{size:11}} } }
+  });
+}
+
+// New Users
+function renderNewUsers(daily) {
+  const filtered = daily.filter(d=>d.newU>0);
+  mk('cNewUsers','bar',{
+    labels: filtered.map(d => {
+      const dt = new Date(d.date+'T00:00:00Z');
+      return (dt.getUTCMonth()+1)+'/'+ dt.getUTCDate();
+    }),
+    datasets:[{
+      data:filtered.map(d=>d.newU),
+      backgroundColor:'rgba(167,139,250,0.55)', borderRadius:5
+    }]
+  },{});
+}
+
+// Heatmap
+function renderHeatmap(heatmap) {
+  const DAYS  = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  const HOURS = Array.from({length:24},(_,i)=>i);
+  const map = {};
+  heatmap.forEach(r => { map[r.day+'_'+r.hour] = { count: r.count, months: r.months }; });
+  const allV = heatmap.map(r=>r.count);
+  const mx = Math.max(...allV, 1);
+
+  function cellStyle(v) {
+    const pct = v/mx;
+    if (pct === 0) return {bg:'rgba(255,255,255,0.02)', col:'transparent'};
+    if (pct < 0.15) return {bg:'rgba(79,142,247,0.10)', col:'rgba(79,142,247,0.45)'};
+    if (pct < 0.3)  return {bg:'rgba(79,142,247,0.22)', col:'rgba(79,142,247,0.65)'};
+    if (pct < 0.5)  return {bg:'rgba(79,142,247,0.38)', col:'#a0c0f8'};
+    if (pct < 0.7)  return {bg:'rgba(79,142,247,0.58)', col:'#c8dcff'};
+    if (pct < 0.85) return {bg:'rgba(79,142,247,0.75)', col:'#dceeff'};
+    return {bg:'rgba(79,142,247,0.92)', col:'#fff'};
+  }
+
+  let html = '<table class="heatmap-table"><thead><tr><th style="min-width:50px"></th>';
+  HOURS.forEach(h => { html += `<th>${h}</th>`; });
+  html += '</tr></thead><tbody>';
+  DAYS.forEach(day => {
+    html += `<tr><td class="h-day-label">${day.substring(0,3)}</td>`;
+    HOURS.forEach(h => {
+      const cell  = map[day+'_'+h] || { count: 0, months: {} };
+      const v     = cell.count;
+      const {bg, col} = cellStyle(v);
+      const label = v > 0 ? v : '';
+
+      const monthParts = Object.entries(cell.months || {})
+        .sort((a,b) => b[1]-a[1])
+        .map(([mon, cnt]) => mon + ': ' + cnt)
+        .join(' · ');
+      const tipMain  = day + ' ' + String(h).padStart(2,'0') + ':00 — ' + v + ' logins';
+      const tipMonths = monthParts ? ' (' + monthParts + ')' : '';
+      const tip = tipMain + tipMonths;
+
+      html += `<td class="heatmap-cell" style="background:${bg};color:${col}" data-tip="${tip}">${label}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('heatmapWrap').innerHTML = html;
+
+  // tooltip
+  const ttp = document.getElementById('ttp');
+  document.getElementById('heatmapWrap').querySelectorAll('[data-tip]').forEach(el => {
+    el.addEventListener('mouseenter', e => {
+      const raw = el.dataset.tip;
+      const parenIdx = raw.indexOf(' (');
+      if (parenIdx > -1) {
+        const main   = raw.substring(0, parenIdx);
+        const months = raw.substring(parenIdx + 2, raw.length - 1);
+        ttp.innerHTML = `<div style="color:var(--text);margin-bottom:3px">${main}</div><div style="color:var(--text3);font-size:10px">${months}</div>`;
+      } else {
+        ttp.innerHTML = `<div style="color:var(--text)">${raw}</div>`;
+      }
+      ttp.style.display = 'block';
+    });
+    el.addEventListener('mousemove', e => {
+      ttp.style.left = (e.clientX + 14) + 'px';
+      ttp.style.top  = (e.clientY + 14) + 'px';
+    });
+    el.addEventListener('mouseleave', () => { ttp.style.display = 'none'; });
+  });
+}
+
+// IPs
+function renderIPs(ips) {
+  mk('cIp','bar',{
+    labels: ips.map(x=>x.ip),
+    datasets:[{
+      data: ips.map(x=>x.count),
+      backgroundColor: ips.map((_,i)=> i<2?'rgba(242,92,92,0.7)':i<5?'rgba(245,166,35,0.6)':'rgba(79,142,247,0.4)'),
+      borderRadius:5
+    }]
+  },{
+    indexAxis:'y',
+    scales:{ y:{ ticks:{ font:{family:"'DM Mono',monospace",size:10} } } }
+  });
+}
+
+// Brute Force Table
+function renderBrute(bf) {
+  const tbl = document.getElementById('bruteTable');
+  tbl.innerHTML = `<thead><tr><th>#</th><th>Email</th><th>Failures</th><th>Risk</th></tr></thead>`;
+  const tbody = document.createElement('tbody');
+  bf.forEach((r,i) => {
+    const cls   = r.count>=15?'r-high':r.count>=10?'r-med':'r-low';
+    const label = r.count>=15?'High':r.count>=10?'Medium':'Low';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--text3)">${i+1}</td>
+      <td>${r.email||'unknown'}</td>
+      <td style="color:var(--red);font-weight:500">${r.count}</td>
+      <td><span class="risk-pill ${cls}">${label}</span></td>`;
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+}
+
+// Top Users
+function renderTopUsers(users) {
+  mk('cTopUsers','bar',{
+    labels: users.map(u=>u.email),
+    datasets:[{
+      data:users.map(u=>u.count),
+      backgroundColor:'rgba(245,166,35,0.5)', borderRadius:5
+    }]
+  },{
+    indexAxis:'y',
+    scales:{ y:{ ticks:{ font:{family:"'DM Mono',monospace",size:10} } } }
+  });
+}
+
+// ── TOP USERS TOGGLE ────────────────────────────────────────────
+const btnTopUsers  = document.getElementById('btnTopUsers');
+const topUsersSection = document.getElementById('topUsersSection');
+let topUsersOn = false;
+btnTopUsers.addEventListener('click', () => {
+  topUsersOn = !topUsersOn;
+  topUsersSection.classList.toggle('show', topUsersOn);
+  btnTopUsers.classList.toggle('active', topUsersOn);
+});
+
+// ── SEARCH ──────────────────────────────────────────────────────
+let searchData = [];
+let searchQ    = '';
+let filterMode = 'all';
+let searchTmo  = null;
+
+const searchInput = document.getElementById('globalSearch');
+const searchPanel = document.getElementById('searchPanel');
+const searchBody  = document.getElementById('searchBody');
+const resultCount = document.getElementById('resultCount');
+const noResultsMsg= document.getElementById('noResultsMsg');
+const overflowNote= document.getElementById('overflowNote');
+
+document.querySelectorAll('.f-chip').forEach(chip => {
+  chip.addEventListener('click', function() {
+    document.querySelectorAll('.f-chip').forEach(c=>c.classList.remove('on'));
+    this.classList.add('on');
+    filterMode = this.dataset.f;
+    runSearch();
+  });
+});
+
+document.getElementById('clearSearch').addEventListener('click', () => {
+  searchInput.value = '';
+  searchQ = '';
+  searchPanel.style.display = 'none';
+});
+
+searchInput.addEventListener('input', function() {
+  searchQ = this.value.trim().toLowerCase();
+  clearTimeout(searchTmo);
+  searchTmo = setTimeout(runSearch, 180);
+});
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey||e.ctrlKey) && e.key==='k') {
+    e.preventDefault();
+    searchInput.focus(); searchInput.select();
+  }
+  if (e.key==='Escape' && document.activeElement===searchInput) {
+    searchInput.value=''; searchQ='';
+    searchPanel.style.display='none';
+  }
+});
+
+function matchFilter(row) {
+  if (filterMode === 'all')       return true;
+  if (filterMode === 'Success')   return row.status === 'Success';
+  if (filterMode === 'Failed')    return row.status === 'Failed';
+  if (filterMode === 'Password')  return row.method === 'Password';
+  if (filterMode === 'IdP')       return row.method === 'IdP';
+  if (filterMode === 'Mobile')    return row.device === 'Mobile';
+  if (filterMode === 'Desktop')   return row.device === 'Desktop';
+  if (filterMode === 'google.com')return (row.provider||'').toLowerCase().includes('google');
+  if (filterMode === 'ms-entra')  return (row.provider||'').toLowerCase().includes('entra') || (row.provider||'').toLowerCase().includes('microsoft');
+  return true;
+}
+
+function runSearch() {
+  if (!searchQ) { searchPanel.style.display='none'; return; }
+  searchPanel.style.display='block';
+
+  const results = searchData.filter(row => {
+    const hay = [row.timestamp, row.email, row.ip, row.method,
+                 row.device, row.status, row.provider, row.errMsg]
+      .join(' ').toLowerCase();
+    return hay.includes(searchQ) && matchFilter(row);
+  });
+
+  resultCount.textContent = results.length.toLocaleString() + ' result' + (results.length!==1?'s':'');
+  searchBody.innerHTML = '';
+  noResultsMsg.style.display  = results.length===0 ? 'block' : 'none';
+  overflowNote.style.display  = results.length>200  ? 'block' : 'none';
+  if (results.length>200)
+    overflowNote.textContent = 'Showing 200 of ' + results.length.toLocaleString() + ' — refine your search to narrow down.';
+
+  results.slice(0,200).forEach(row => {
+    const ts  = row.timestamp.replace('T',' ').split('.')[0];
+    const sCls = row.status==='Success' ? 'sb-ok' : 'sb-fail';
+    const mCls = row.method==='Password' ? 'sb-pw' : 'sb-idp';
+    const dCls = row.device==='Mobile'   ? 'sb-mob' : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${ts}</td>
+      <td>${row.email||'<span class="no-data">—</span>'}</td>
+      <td>${row.ip||'<span class="no-data">—</span>'}</td>
+      <td><span class="sbadge ${mCls}">${row.method}</span></td>
+      <td><span class="sbadge ${dCls}">${row.device}</span></td>
+      <td>${row.provider ? `<span style="font-size:10px;color:var(--text2)">${row.provider}</span>` : '<span class="no-data">—</span>'}</td>
+      <td><span class="sbadge ${sCls}">${row.status}</span></td>
+      <td style="color:var(--text3);font-size:10px">${row.errMsg||''}</td>`;
+    searchBody.appendChild(tr);
+  });
+}
+</script>
+</body>
+</html>
